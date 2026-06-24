@@ -88,15 +88,16 @@ def _save_notebook(dump: dict, out_dir: Path) -> None:
         print(f"  decoded {n} inline figure(s)")
 
 
-def _download_entries(client: EdisonClient, dump: dict, out_dir: Path) -> None:
+def _download_entries(client: EdisonClient, dump: dict, out_dir: Path, skip: set | None = None) -> None:
     raw = json.dumps(dump)
+    skip = skip or set()
     seen = set()
     # Collect any UUIDs referenced as data entries in the response.
     for token in raw.replace('"', " ").split():
         token = token.strip(",")
         if token.count("-") == 4 and len(token) == 36 and token not in seen:
             seen.add(token)
-    for uid in seen:
+    for uid in seen - skip:
         try:
             result = client.fetch_data_from_storage(uid)
         except Exception:  # noqa: BLE001 - best effort over many candidate UUIDs
@@ -114,6 +115,9 @@ def main() -> None:
         raise SystemExit("No edison/tasks.json; run dispatch_latent_space.py first.")
     state = json.loads(STATE_PATH.read_text())
     client = _client()
+    # UUIDs of inputs we uploaded (e.g. the repo collection) must not be
+    # re-downloaded and committed as "artifacts".
+    input_uuids = {str(v) for k, v in state.items() if k.endswith("entry")}
 
     for label in ("lit", "analysis"):
         task_id = state.get(label)
@@ -128,7 +132,7 @@ def main() -> None:
         )
         _save_answer(dump, out_dir)
         _save_notebook(dump, out_dir)
-        _download_entries(client, dump, out_dir)
+        _download_entries(client, dump, out_dir, skip=input_uuids | {task_id})
 
 
 if __name__ == "__main__":

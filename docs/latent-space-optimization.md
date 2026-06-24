@@ -11,6 +11,13 @@ It is grounded in the current MOF-GRU code:
 (`MyDataset`, `collate_fn`), [`get_MOFseq.py`](../get_MOFseq.py) (SELFIES
 tokenization of the MOF "sentence"), and [`training.py`](../training.py).
 
+> **See also:**
+> [`candidate-space-optimization.md`](candidate-space-optimization.md) covers the
+> complementary *predefined-candidate-space / featurization* approach (optimize
+> by selecting from a fixed library of real MOFs, no decoder needed). That route
+> is lower-effort and lower-risk and is recommended as the first thing to try;
+> the generative VAE route below is for proposing genuinely novel structures.
+
 ## 1. What "optimizing over global variables" means here
 
 Today MOF-GRU is a **supervised regressor**. `GRUModel` encodes a MOF sentence

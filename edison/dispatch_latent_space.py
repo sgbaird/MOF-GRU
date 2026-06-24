@@ -49,7 +49,16 @@ LIT_QUERY = (
     "decodability/validity and constraining to the data manifold (jointly trained property "
     "predictors, semi-supervised VAEs, uncertainty/penalty terms). Compare these latent-space "
     "approaches to optimizing over global variables directly, and give concrete, actionable "
-    "recommendations for the MOF-GRU codebase."
+    "recommendations for the MOF-GRU codebase. (6) Also cover the alternative 'featurization over a "
+    "predefined candidate space' paradigm (as in the Honegumi/Ax featurization tutorial): rather than "
+    "optimizing a free continuous latent vector that must be decoded, enumerate a fixed library of "
+    "real, synthesizable MOF candidates, featurize each candidate (e.g., with a learned encoder "
+    "embedding such as the MOF-GRU pooled hidden state, or with hand-engineered global descriptors), "
+    "and run Bayesian optimization / active learning over the discrete candidate set so that every "
+    "proposed point is guaranteed valid and decode-free. Discuss when discrete-candidate BO with a "
+    "learned featurization is preferable to generative latent-space optimization, the role of the GP "
+    "kernel over learned features, batch/active-learning acquisition over candidate pools, and how "
+    "this maps onto MOF-GRU's existing get_hidden_layer_output embeddings."
 )
 
 ANALYSIS_QUERY = (
@@ -66,8 +75,18 @@ ANALYSIS_QUERY = (
     "vocabulary (reuse my_dict_output.json and MOFseq), a jointly trained property head, and "
     "latent-space Bayesian optimization / gradient ascent with decode-and-validate; (4) sketch the "
     "interfaces/functions to add and how they connect to existing code (MyDataset, collate_fn, "
-    "GRUModel). Where useful, produce diagrams/plots illustrating the proposed latent-space "
-    "optimization workflow. Provide an actionable summary tailored to this repository."
+    "GRUModel); (5) ALSO analyze the alternative 'featurization over a predefined candidate space' "
+    "approach (Honegumi/Ax featurization tutorial style): instead of decoding a free latent vector, "
+    "treat the existing MOF library (dataset/mof_output.csv + MOFseq_output.txt) - or any enumerated "
+    "candidate pool - as a fixed discrete search space, featurize each candidate with the MOF-GRU "
+    "pooled hidden state (get_hidden_layer_output, a 2*hidden_size vector), and run Bayesian "
+    "optimization / active learning that selects which existing candidate to evaluate next. Explain "
+    "why this sidesteps the non-invertibility/validity problem (every candidate is already a real MOF, "
+    "no decoder needed), how to wire it (compute embeddings for all MOFs once, fit a GP over the "
+    "embeddings, use an acquisition function to rank unobserved candidates), and its trade-offs vs. "
+    "generative latent-space optimization. Where useful, produce diagrams/plots illustrating both the "
+    "latent-space optimization workflow and the discrete-candidate featurization workflow. Provide an "
+    "actionable summary tailored to this repository."
 )
 
 
