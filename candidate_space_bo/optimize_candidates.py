@@ -151,12 +151,17 @@ def load_pool(csv_path: Path, objective: str, n_candidates: int, rng: np.random.
     return names, desc, descriptor_names, y
 
 
-def gru_features(names, csv_path: Path, checkpoint: Path):
+def gru_features(names, csv_path: Path, checkpoint: Path, return_preds: bool = False):
     """Featurize candidates with the MOF-GRU pooled hidden state.
 
     Reuses ``models.py``/``utils.py``: tokenizes each MOF sentence with the same
     vocabulary and returns ``GRUModel.get_hidden_layer_output`` (a ``2*hidden``
     embedding). Requires ``torch`` and a trained checkpoint.
+
+    If ``return_preds`` is True, also returns the model's own scalar property
+    prediction for each candidate (the end-to-end "GNN prediction"), computed in
+    the same forward pass. Returns ``(order, features)`` or, when
+    ``return_preds``, ``(order, features, preds)``.
     """
     import json
     import sys
@@ -188,12 +193,28 @@ def gru_features(names, csv_path: Path, checkpoint: Path):
         except KeyError:
             continue
 
-    model = torch.load(checkpoint, map_location="cpu")
+    # ``weights_only`` defaults to True in torch>=2.6, which rejects the pickled
+    # ``GRUModel`` instance these checkpoints store. The checkpoints are trusted
+    # repository artifacts, so fall back to a full (``weights_only=False``) load.
+    try:
+        model = torch.load(checkpoint, map_location="cpu", weights_only=False)
+    except TypeError:  # older torch without the weights_only kwarg
+        model = torch.load(checkpoint, map_location="cpu")
     model.eval()
 
-    feats = []
-    batch = []
-    order = []
+    feats: list = []
+    preds: list = []
+    batch: list = []
+    order: list = []
+
+    def _flush(b):
+        x, _ = collate_fn(b)
+        with torch.no_grad():
+            out = model(x)  # forward sets model.hidden_output (the embedding)
+            feats.append(model.hidden_output.cpu().numpy())
+            if return_preds:
+                preds.append(out.squeeze(-1).cpu().numpy())
+
     for name in names:
         toks = name_to_tokens.get(name)
         if toks is None:
@@ -201,15 +222,14 @@ def gru_features(names, csv_path: Path, checkpoint: Path):
         batch.append((torch.tensor(toks, dtype=torch.long), 0.0))
         order.append(name)
         if len(batch) == 128:
-            x, _ = collate_fn(batch)
-            with torch.no_grad():
-                feats.append(model.get_hidden_layer_output(x).cpu().numpy())
+            _flush(batch)
             batch = []
     if batch:
-        x, _ = collate_fn(batch)
-        with torch.no_grad():
-            feats.append(model.get_hidden_layer_output(x).cpu().numpy())
-    return order, np.concatenate(feats, axis=0)
+        _flush(batch)
+    features = np.concatenate(feats, axis=0)
+    if return_preds:
+        return order, features, np.concatenate(preds, axis=0)
+    return order, features
 
 
 def expected_improvement(mu, sigma, best, xi=0.01):

@@ -39,9 +39,33 @@ out-samples random selection even when the library is large. Pass a smaller
 
 ![BO trace](bo_trace.png)
 
+## Surrogate comparison: GP over GNN embeddings vs. the GNN's own predictions
+
+[`gp_vs_gnn_surrogate.py`](gp_vs_gnn_surrogate.py) keeps the **same** frozen
+MOF-GRU encoder (the 400-d pooled hidden state) and swaps only the *surrogate*
+that drives the active-learning loop:
+
+```bash
+python candidate_space_bo/gp_vs_gnn_surrogate.py \
+    --objective CH4ABL \
+    --checkpoint my_models/new/biGRU_CH4ABL_model_ep_40_em_80_hd200.pth \
+    --n-candidates 6000 --iters 50 --seeds 6
+```
+
+It compares a **GP over the GNN embeddings** (Expected Improvement), the **GNN's
+own predictor as a deep-ensemble surrogate** (retrained on observed labels each
+round, EI), a **leaky greedy reference** using the pretrained GNN's in-sample
+predictions, and **random search**. Over the raw 400-d embedding the
+neural-ensemble surrogate (≈2.73) clearly beats the GP (≈2.07) and nearly matches
+the leaky pretrained-GNN ceiling (≈2.79); see
+[`docs/candidate-space-optimization.md`](../docs/candidate-space-optimization.md)
+for discussion (and why reducing dimensionality makes the GP competitive again).
+
+![GP vs GNN surrogate](gp_vs_gnn_trace.png)
+
 ## Dependencies
 
 - `descriptors` featurizer: `numpy`, `scikit-learn`, `matplotlib` (`scipy` comes
   with scikit-learn).
-- `gru` featurizer: additionally `torch` and `selfies`; reuses `models.py` /
-  `utils.py` from the repository root.
+- `gru` featurizer / `gp_vs_gnn_surrogate.py`: additionally `torch` and
+  `selfies`; reuses `models.py` / `utils.py` from the repository root.
