@@ -11,11 +11,18 @@ queries requested in
 
 ## Status
 
-> ⚠️ **Not yet executed.** When this branch was prepared, the Edison endpoint
-> `api.platform.edisonscientific.com` was **not reachable from the agent
-> sandbox** (DNS for `*.edisonscientific.com` was blocked, so authentication
-> failed before any task could be created). The scripts below are ready to run
-> as soon as the domain is allow-listed; `artifacts/` will be populated then.
+> ✅ **Executed.** Both Edison tasks ran to `success` and their trajectories are
+> committed under [`artifacts/`](artifacts):
+>
+> | Task | Job | ID | Output |
+> | --- | --- | --- | --- |
+> | Literature (high) | `LITERATURE_HIGH` | `ffe4cb56-c6a7-41d0-9182-ec8d79b5fa0d` | [`artifacts/lit/answer.md`](artifacts/lit/answer.md) (~49k chars, fully cited) |
+> | Analysis | `ANALYSIS` | `d6673951-5d91-4049-be04-d2de3f9f6dcd` | [`artifacts/analysis/answer.md`](artifacts/analysis/answer.md), [`notebook.ipynb`](artifacts/analysis/notebook.ipynb), 3 decoded figures |
+>
+> The ANALYSIS run had the full repository uploaded as a single zipped collection
+> and independently confirmed the dataset scale (**113,160 MOFs**, vocabulary
+> 583) and the encoder-vs-generative-latent distinction documented in
+> [`../docs/`](../docs).
 
 ## How to run
 

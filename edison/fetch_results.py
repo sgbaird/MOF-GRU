@@ -74,7 +74,7 @@ def _save_notebook(dump: dict, out_dir: Path) -> None:
     notebook = dump.get("notebook")
     if not notebook:
         return
-    (out_dir / "notebook.ipynb").write_text(json.dumps(notebook, indent=1))
+    (out_dir / "notebook.ipynb").write_text(json.dumps(notebook, indent=1, default=str))
     n = 0
     for cell in notebook.get("cells", []):
         for output in cell.get("outputs", []):
@@ -89,7 +89,7 @@ def _save_notebook(dump: dict, out_dir: Path) -> None:
 
 
 def _download_entries(client: EdisonClient, dump: dict, out_dir: Path, skip: set | None = None) -> None:
-    raw = json.dumps(dump)
+    raw = json.dumps(dump, default=str)
     skip = skip or set()
     seen = set()
     # Collect any UUIDs referenced as data entries in the response.
