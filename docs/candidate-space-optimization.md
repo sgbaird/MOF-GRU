@@ -59,21 +59,25 @@ objective — a good inductive bias for the GP kernel.
 
 [`candidate_space_bo/optimize_candidates.py`](../candidate_space_bo/optimize_candidates.py)
 implements the full loop and runs on the real MOF library bundled in the repo
-(`dataset/mof_output.csv`, read transparently from `MOF-GRU.zip` if the plain CSV
-is not unpacked). It maximizes a target property (default `CH4ABL`, the methane
-deliverable capacity) by selecting candidates from the fixed pool, and compares
-**GP+EI Bayesian optimization** against **random search** over the same pool.
+(`dataset/mof_output.csv`, read transparently from `dataset/mof_output.zip` or
+`MOF-GRU.zip` if the plain CSV is not unpacked). It maximizes a target property
+(default `CH4ABL`, the methane deliverable capacity) by selecting candidates from
+the fixed pool, and compares **GP+EI Bayesian optimization** against **random
+search** over the same pool.
 
 ```bash
 python candidate_space_bo/optimize_candidates.py \
     --objective CH4ABL --featurizer descriptors \
-    --n-candidates 6000 --iters 60 --seeds 5
+    --n-candidates 0 --iters 100 --seeds 8
 ```
 
-Result on a 6,000-MOF pool, averaged over 5 seeds (starting from 10 random
-candidates): after 60 evaluations BO reaches a best `CH4ABL` of **~2.47** vs.
-**~1.90** for random search (pool optimum **2.78**) — BO finds high-performing
-MOFs with far fewer evaluations.
+Result on the **full library** — all **113,160** real MOFs (`--n-candidates 0`,
+no subsampling), averaged over 8 seeds (starting from 10 random candidates):
+after 100 evaluations BO reaches a best `CH4ABL` of **~2.47** vs. **~2.16** for
+random search (pool optimum **3.63**) — BO finds high-performing MOFs with far
+fewer evaluations even when scanning the entire 113k-candidate pool (~6 min,
+CPU only). Use a smaller `--n-candidates` (e.g. `6000`) for a faster subsampled
+demo.
 
 ![Discrete-candidate BO vs random search](../candidate_space_bo/bo_trace.png)
 

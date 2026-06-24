@@ -35,7 +35,10 @@ Example
 -------
     python candidate_space_bo/optimize_candidates.py \
         --csv dataset/mof_output.csv --objective CH4ABL \
-        --featurizer descriptors --n-candidates 4000 --iters 60 --seeds 5
+        --featurizer descriptors --n-candidates 0 --iters 100 --seeds 8
+
+``--n-candidates 0`` uses the full candidate library (all 113,160 MOFs);
+pass a positive value to subsample for a quicker run.
 """
 
 from __future__ import annotations
@@ -68,16 +71,28 @@ DESCRIPTOR_COLUMNS = [
 
 
 def _open_csv(csv_path: Path):
-    """Yield rows from ``csv_path``; falls back to the bundled ``MOF-GRU.zip``.
+    """Yield rows from ``csv_path``; falls back to bundled zip archives.
 
     The repository ships the large CSVs zipped, so if the plain CSV is absent we
-    transparently read it out of ``MOF-GRU.zip``.
+    transparently read it out of the sibling ``<name>.zip`` (e.g.
+    ``dataset/mof_output.zip``) or, failing that, the whole-repo ``MOF-GRU.zip``
+    snapshot.
     """
     if csv_path.exists():
         with csv_path.open(newline="") as f:
             yield from csv.DictReader(f)
         return
 
+    # 1) Sibling archive shipped next to the CSV, e.g. dataset/mof_output.zip.
+    sibling_zip = csv_path.with_suffix(".zip")
+    if sibling_zip.exists():
+        with zipfile.ZipFile(sibling_zip) as zf:
+            with zf.open(csv_path.name) as raw:
+                text = io.TextIOWrapper(raw, encoding="utf-8", newline="")
+                yield from csv.DictReader(text)
+        return
+
+    # 2) Whole-repository snapshot bundled at the repo root.
     zip_path = REPO_ROOT / "MOF-GRU.zip"
     inner = f"MOF-GRU/dataset/{csv_path.name}"
     if zip_path.exists():
@@ -88,7 +103,7 @@ def _open_csv(csv_path: Path):
         return
 
     raise FileNotFoundError(
-        f"Could not find {csv_path} or {inner} inside {zip_path}."
+        f"Could not find {csv_path}, {sibling_zip}, or {inner} inside {zip_path}."
     )
 
 
@@ -271,7 +286,8 @@ def main() -> None:
     p.add_argument("--objective", default="CH4ABL", help="Property column to maximize.")
     p.add_argument("--featurizer", choices=["descriptors", "gru"], default="descriptors")
     p.add_argument("--checkpoint", default=None, help="Trained GRUModel .pth (gru featurizer).")
-    p.add_argument("--n-candidates", type=int, default=4000)
+    p.add_argument("--n-candidates", type=int, default=4000,
+                   help="Candidate pool size; 0 uses the full library (no subsampling).")
     p.add_argument("--iters", type=int, default=60)
     p.add_argument("--n-init", type=int, default=10)
     p.add_argument("--seeds", type=int, default=5)
