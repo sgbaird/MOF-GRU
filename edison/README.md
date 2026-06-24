@@ -7,7 +7,8 @@ queries requested in
 | Script | Purpose |
 | --- | --- |
 | [`dispatch_latent_space.py`](dispatch_latent_space.py) | Sends a high-effort **LITERATURE** query and an **ANALYSIS** query (with the whole repo uploaded as a single zipped collection). Records task IDs to `tasks.json` so the run is resumable. |
-| [`fetch_results.py`](fetch_results.py) | Polls each task to a terminal state and writes answers, notebooks, downloaded artifacts, and decoded inline figures into `artifacts/<lit|analysis>/`. |
+| [`dispatch_surrogate_followup.py`](dispatch_surrogate_followup.py) | Sends a follow-up high-effort **LITERATURE** query on how to make a GP/surrogate competitive over the frozen 400-d MOF-GRU embedding (dimensionality reduction, descriptor fusion, smaller bottleneck, VAE). Appends its task ID to `tasks.json` under `lit_followup`. |
+| [`fetch_results.py`](fetch_results.py) | Polls each task to a terminal state and writes answers, notebooks, downloaded artifacts, and decoded inline figures into `artifacts/<lit\|analysis\|lit_followup>/`. |
 
 ## Status
 
@@ -18,6 +19,7 @@ queries requested in
 > | --- | --- | --- | --- |
 > | Literature (high) | `LITERATURE_HIGH` | `ffe4cb56-c6a7-41d0-9182-ec8d79b5fa0d` | [`artifacts/lit/answer.md`](artifacts/lit/answer.md) (~49k chars, fully cited) |
 > | Analysis | `ANALYSIS` | `d6673951-5d91-4049-be04-d2de3f9f6dcd` | [`artifacts/analysis/answer.md`](artifacts/analysis/answer.md), [`notebook.ipynb`](artifacts/analysis/notebook.ipynb), 3 decoded figures |
+> | Literature follow-up (high) | `LITERATURE_HIGH` | `eeba1dfe-beea-43a4-991d-214db5b76780` | [`artifacts/lit_followup/answer.md`](artifacts/lit_followup/answer.md) (~53k chars, fully cited): GP-over-embedding fixes — PCA/PLS, SAASBO, deep-kernel learning, descriptor kernel composition, smaller bottleneck, VAE |
 >
 > The ANALYSIS run had the full repository uploaded as a single zipped collection
 > and independently confirmed the dataset scale (**113,160 MOFs**, vocabulary
@@ -32,6 +34,7 @@ export EDISON_PLATFORM_API_KEY=...   # or EDISON_API_KEY
 
 python edison/dispatch_latent_space.py   # creates tasks, writes edison/tasks.json
 # high-effort literature can take ~15 min; analysis a few minutes
+python edison/dispatch_surrogate_followup.py  # follow-up GP-over-embedding query
 python edison/fetch_results.py           # polls + saves to edison/artifacts/
 ```
 

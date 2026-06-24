@@ -63,9 +63,46 @@ for discussion (and why reducing dimensionality makes the GP competitive again).
 
 ![GP vs GNN surrogate](gp_vs_gnn_trace.png)
 
+## Improving the GP's representation: dimensionality reduction, descriptors, smaller embedding
+
+[`embedding_dimensionality.py`](embedding_dimensionality.py) answers *how* to make
+the GP competitive over the learned embedding. It keeps the same frozen encoder
+fixed and swaps only the **representation** the GP sees: raw 400-d, **PCA-`k`**
+(unsupervised), **PLS-`k`** (supervised, refit on observed labels), hand-engineered
+**descriptors**, **descriptors + PCA embedding**, a **compact retrained 32-d
+embedding**, plus the GNN deep-ensemble and random baselines.
+
+```bash
+# train a compact-bottleneck encoder (hidden=16 -> 32-d embedding), then compare
+python candidate_space_bo/train_small_embedding.py \
+    --objective CH4ABL --hidden 16 --epochs 8 --n-train 25000
+
+python candidate_space_bo/embedding_dimensionality.py \
+    --objective CH4ABL \
+    --checkpoint my_models/new/biGRU_CH4ABL_model_ep_40_em_80_hd200.pth \
+    --extra-checkpoint my_models/small/biGRU_CH4ABL_hd16.pth \
+    --n-candidates 3000 --iters 40 --seeds 5 --k 20
+```
+
+The PCA spectrum of the embedding is **flat** (90 % variance needs ~196 of 400
+dims — no low-rank structure), yet truncating to **PCA-20 rescues the GP
+dramatically**: it reaches the pool optimum (2.61) and overtakes the deep-ensemble
+GNN (2.54), while the raw 400-d GP (2.17) barely beats random (1.93).
+**Descriptors + PCA-embedding** also hits the optimum, and the **retrained 32-d
+embedding** beats the raw GP. The reason PCA helps despite the flat spectrum is
+GP *conditioning* — a 400-d ARD kernel is unidentifiable from tens of labels — not
+variance compression. Full discussion, results table, and the Edison-cited ranked
+plan (SAASBO, deep-kernel learning, descriptor kernel composition, joint
+bottleneck retraining) are in
+[`docs/candidate-space-optimization.md`](../docs/candidate-space-optimization.md).
+
+![PCA spectrum](pca_spectrum.png)
+![Representation comparison](embedding_dimensionality_trace.png)
+
 ## Dependencies
 
 - `descriptors` featurizer: `numpy`, `scikit-learn`, `matplotlib` (`scipy` comes
   with scikit-learn).
-- `gru` featurizer / `gp_vs_gnn_surrogate.py`: additionally `torch` and
-  `selfies`; reuses `models.py` / `utils.py` from the repository root.
+- `gru` featurizer / `gp_vs_gnn_surrogate.py` / `embedding_dimensionality.py` /
+  `train_small_embedding.py`: additionally `torch` and `selfies`; reuse
+  `models.py` / `utils.py` from the repository root.

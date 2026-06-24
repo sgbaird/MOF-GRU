@@ -149,7 +149,122 @@ geometry far better. Practical implications:
 - To make the **GP competitive**, reduce dimensionality before the kernel (PCA
   to ~10–30 dims, or the `descriptors` featurizer) or use a deep-kernel /
   BoTorch GP with input warping — a GP then regains its well-calibrated
-  uncertainty advantage in the low-data regime.
+  uncertainty advantage in the low-data regime. **This is exactly what the next
+  section measures**, and the result is emphatic.
+
+## Making the GP competitive: dimensionality reduction, descriptor fusion, and a smaller embedding
+
+The result above raised an obvious follow-up: *how* do you make a GP work over
+the learned embedding? [`candidate_space_bo/embedding_dimensionality.py`](../candidate_space_bo/embedding_dimensionality.py)
+holds the **same frozen MOF-GRU encoder** fixed and swaps only the *representation*
+the GP sees (every strategy uses the identical EI candidate-space loop):
+
+- **`gp-raw`** — GP on the raw 400-d embedding (the weak baseline above).
+- **`gp-pca{k}`** — GP on an **unsupervised PCA-`k`** projection (label-free, so
+  fit transductively on the whole pool once).
+- **`gp-pls{k}`** — GP on a **supervised PLS-`k`** projection, *re-fit each round
+  on the observed `(embedding, y)` pairs only* (no leakage).
+- **`gp-desc`** — GP on the 10 hand-engineered structural descriptors.
+- **`gp-desc+emb`** — GP on standardized descriptors **concatenated** with the
+  PCA-reduced embedding (learned + physical features together).
+- **`gp-small`** — GP on a **compact 32-d embedding from a retrained encoder**
+  ([`train_small_embedding.py`](../candidate_space_bo/train_small_embedding.py),
+  `hidden_size=16` ⇒ a `2·16 = 32`-d pooled state) instead of post-hoc
+  compressing the 400-d one.
+- **`gnn`** — the deep-ensemble head over the raw embedding (prior winner), and
+  **`random`**.
+
+```bash
+python candidate_space_bo/embedding_dimensionality.py \
+    --objective CH4ABL \
+    --checkpoint my_models/new/biGRU_CH4ABL_model_ep_40_em_80_hd200.pth \
+    --extra-checkpoint my_models/small/biGRU_CH4ABL_hd16.pth \
+    --n-candidates 3000 --iters 40 --seeds 5 --k 20
+```
+
+**Is the embedding low-rank? No — but PCA still rescues the GP.** The PCA
+explained-variance spectrum is **flat**: 50 % of the variance needs ~25 principal
+components and 90 % needs ~196 of the 400 dimensions. So the intuition that *each
+GRU hidden unit carries roughly equal importance* is **correct** — there is no
+dominant low-rank structure to compress.
+
+![PCA spectrum of the MOF-GRU embedding](../candidate_space_bo/pca_spectrum.png)
+
+Yet truncating to PCA-20 **dramatically improves the GP anyway** (3,000-MOF pool,
+40 evaluations, mean of 5 seeds; pool optimum 2.61):
+
+| Representation (GP unless noted) | Best `CH4ABL` |
+|---|---|
+| **PCA-20 embedding** | **2.61** (reaches pool optimum) |
+| **Descriptors + PCA-20 embedding** | **2.61** (reaches pool optimum) |
+| GNN deep-ensemble head (raw 400-d) | 2.54 |
+| PLS-20 (supervised) embedding | 2.47 |
+| Small **retrained 32-d** embedding | 2.43 |
+| Descriptors only (10-d) | 2.32 |
+| Raw 400-d embedding | 2.17 |
+| Random search | 1.93 |
+
+![Surrogate representation comparison](../candidate_space_bo/embedding_dimensionality_trace.png)
+
+**Takeaways.**
+
+- **PCA helps for the *conditioning* reason, not the *variance* reason.** Even
+  though the spectrum is flat (no real low-rank structure), reducing 400 → 20
+  dimensions makes the stationary GP's ARD length-scale estimation *identifiable*
+  from a handful of labels. The 400-d ARD fit is the problem; the variance
+  spectrum is a red herring. So the right framing of the intuition is: *PCA won't
+  recover a compact subspace, but it still fixes the GP because the failure was
+  hyperparameter identifiability, not missing variance.*
+- **PCA-20 actually overtakes the deep-ensemble GNN here** and ties the
+  descriptor-fusion GP at the pool optimum — a well-conditioned GP regains its
+  sample-efficiency/uncertainty advantage once it lives in a tractable dimension.
+- **Adding descriptors is excellent and cheap** (`gp-desc+emb` also hits the
+  optimum); physical pore/density descriptors are complementary to the learned
+  sequence features.
+- **A smaller *learned* bottleneck works too** (`gp-small`, 32-d, beats raw GP)
+  even though this demo encoder was trained briefly on a 25 k subset
+  (validation r ≈ 0.87 vs. r ≈ 0.98 for the shipped 400-d model); training a
+  full-size compact encoder, ideally *jointly with the property head*, should
+  close the remaining gap to PCA-20.
+- **Supervised PLS underperformed unsupervised PCA** at this label budget:
+  re-fitting a 20-component PLS projection from only tens of labels overfits the
+  projection. Supervised reduction tends to win when *very few* directions matter
+  and labels are plentiful; with tens of labels, the label-free PCA truncation
+  was both simpler and stronger.
+
+### What an Edison literature review recommends
+
+A high-effort Edison Scientific literature query on exactly this problem
+([`edison/artifacts/lit_followup/answer.md`](../edison/artifacts/lit_followup/answer.md),
+fully cited) returns a ranked plan that lines up with the experiment above and
+points to the next rungs:
+
+1. **Diagnose first** — standardize the embedding, inspect the PCA spectrum, and
+   benchmark the GP on PCA/PLS-reduced spaces (done here).
+2. **Kernel hygiene** — prefer Matérn-5/2 over SE/RBF (SE kernels suffer
+   gradient-vanishing pathologies at d ≳ 200) with careful normalization; this
+   demo already uses Matérn-5/2.
+3. **SAASBO / SAAS-GP** — sparse axis-aligned priors on the inverse length scales
+   are "the single most impactful change for a stationary GP in 400 dimensions
+   with few labels" (Eriksson & Jankowiak 2021); a strong next step over the raw
+   embedding without retraining.
+4. **Descriptor fusion via kernel composition** — concatenate physical
+   descriptors (void fraction, surface area, pore diameters) or use an additive
+   kernel `k = k_GRU + k_geom` (the `gp-desc+emb` strategy is the concatenation
+   form).
+5. **Deep-kernel learning (DKL)** — put the GP on top of a learned MLP/GRU
+   feature map (Wilson et al. 2016) so the GP no longer has to be stationary in
+   raw 400-d space.
+6. **Retrain a smaller bottleneck (8–64 d) jointly with the property head**
+   (`gp-small` is the post-hoc-trained version of this).
+7. **Self-supervised / contrastive retraining** on abundant unlabeled MOFs for a
+   more optimization-friendly embedding; and, if BO still trails, **keep the deep
+   ensemble as the production surrogate** and use the GP for calibration.
+
+Edison's single highest-leverage suggestion for *this exact regime* (a frozen
+400-d embedding, tens-to-hundreds of labels) is **SAASBO + physical descriptors
+via kernel composition** — i.e. fix the GP's high-dimensional identifiability and
+inject cheap physical priors, rather than immediately retraining the encoder.
 
 ## How it maps onto a production / Ax+Honegumi setup
 
