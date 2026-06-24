@@ -68,8 +68,14 @@ from optimize_candidates import (  # noqa: E402 - sibling module
 # --------------------------------------------------------------------------- #
 # Surrogates
 # --------------------------------------------------------------------------- #
-def _fit_gp(x_obs, y_obs):
-    """Gaussian-process regressor over the (standardized) GNN embeddings."""
+def _fit_gp(x_obs, y_obs, max_iter=None):
+    """Gaussian-process regressor over the (standardized) GNN embeddings.
+
+    ``max_iter`` optionally caps the L-BFGS-B iterations of the kernel
+    hyperparameter optimization. This is mainly useful to keep *high-dimensional*
+    ARD fits (e.g. the raw 400-d embedding) tractable; ``None`` keeps
+    scikit-learn's default optimizer behavior.
+    """
     from sklearn.gaussian_process import GaussianProcessRegressor
     from sklearn.gaussian_process.kernels import ConstantKernel, Matern, WhiteKernel
     from sklearn.exceptions import ConvergenceWarning
@@ -79,7 +85,21 @@ def _fit_gp(x_obs, y_obs):
         * Matern(length_scale=np.ones(x_obs.shape[1]), length_scale_bounds=(1e-1, 1e3), nu=2.5)
         + WhiteKernel(1e-2, (1e-4, 1e1))
     )
-    gp = GaussianProcessRegressor(kernel=kernel, normalize_y=True, alpha=1e-6, n_restarts_optimizer=0)
+
+    optimizer = "fmin_l_bfgs_b"
+    if max_iter is not None:
+        from scipy.optimize import minimize
+
+        def optimizer(obj_func, initial_theta, bounds):  # noqa: ANN001
+            res = minimize(
+                obj_func, initial_theta, method="L-BFGS-B", jac=True,
+                bounds=bounds, options={"maxiter": max_iter},
+            )
+            return res.x, res.fun
+
+    gp = GaussianProcessRegressor(
+        kernel=kernel, normalize_y=True, alpha=1e-6, n_restarts_optimizer=0, optimizer=optimizer,
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ConvergenceWarning)
         gp.fit(x_obs, y_obs)
