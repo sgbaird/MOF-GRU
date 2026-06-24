@@ -119,7 +119,7 @@ def main() -> None:
     # re-downloaded and committed as "artifacts".
     input_uuids = {str(v) for k, v in state.items() if k.endswith("entry")}
 
-    for label in ("lit", "analysis"):
+    for label in ("lit", "analysis", "lit_followup"):
         task_id = state.get(label)
         if not task_id:
             continue
