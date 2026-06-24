@@ -1,0 +1,67 @@
+Device: cpu (threads=4)
+
+=== Property: Density ===
+Loaded 4000 samples (vocab=583)
+  epoch 1/12  train_mse=0.0708
+  epoch 2/12  train_mse=0.0335
+  epoch 3/12  train_mse=0.0307
+  epoch 4/12  train_mse=0.0256
+  epoch 5/12  train_mse=0.0233
+  epoch 6/12  train_mse=0.0185
+  epoch 7/12  train_mse=0.0172
+  epoch 8/12  train_mse=0.0154
+  epoch 9/12  train_mse=0.0143
+  epoch 10/12  train_mse=0.0146
+  epoch 11/12  train_mse=0.0140
+  epoch 12/12  train_mse=0.0128
+  -> test R2=0.767 MAE=0.0909 SRCC=0.864 (399.2s)
+
+=== Property: PLD ===
+Loaded 4000 samples (vocab=583)
+  epoch 1/12  train_mse=24.2160
+  epoch 2/12  train_mse=10.6790
+  epoch 3/12  train_mse=9.7330
+  epoch 4/12  train_mse=9.2112
+  epoch 5/12  train_mse=8.6675
+  epoch 6/12  train_mse=7.6259
+  epoch 7/12  train_mse=6.1874
+  epoch 8/12  train_mse=5.3798
+  epoch 9/12  train_mse=4.7240
+  epoch 10/12  train_mse=4.3299
+  epoch 11/12  train_mse=3.8389
+  epoch 12/12  train_mse=4.0195
+  -> test R2=0.461 MAE=1.73 SRCC=0.711 (400.6s)
+
+=== Property: LCD ===
+Loaded 4000 samples (vocab=583)
+  epoch 1/12  train_mse=45.6192
+  epoch 2/12  train_mse=15.2448
+  epoch 3/12  train_mse=11.7070
+  epoch 4/12  train_mse=10.8231
+  epoch 5/12  train_mse=10.1065
+  epoch 6/12  train_mse=9.4328
+  epoch 7/12  train_mse=8.5532
+  epoch 8/12  train_mse=7.8955
+  epoch 9/12  train_mse=6.8706
+  epoch 10/12  train_mse=6.4583
+  epoch 11/12  train_mse=5.9470
+  epoch 12/12  train_mse=6.2341
+  -> test R2=0.681 MAE=1.71 SRCC=0.815 (395.8s)
+
+=== Property: CH4ABL ===
+Loaded 4000 samples (vocab=583)
+  epoch 1/12  train_mse=0.1317
+  epoch 2/12  train_mse=0.0888
+  epoch 3/12  train_mse=0.0787
+  epoch 4/12  train_mse=0.0693
+  epoch 5/12  train_mse=0.0681
+  epoch 6/12  train_mse=0.0608
+  epoch 7/12  train_mse=0.0574
+  epoch 8/12  train_mse=0.0553
+  epoch 9/12  train_mse=0.0534
+  epoch 10/12  train_mse=0.0521
+  epoch 11/12  train_mse=0.0496
+  epoch 12/12  train_mse=0.0481
+  -> test R2=0.703 MAE=0.151 SRCC=0.863 (412.9s)
+
+Wrote metrics to reproduce/results/metrics.json
